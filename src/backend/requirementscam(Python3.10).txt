@@ -1,0 +1,10 @@
+pandas
+fastapi
+uvicorn
+asyncio
+pyserial
+ultralytics
+yolo
+torch
+pyrealsense2
+opencv-python

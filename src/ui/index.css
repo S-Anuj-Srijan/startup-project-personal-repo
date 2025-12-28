@@ -1,0 +1,18 @@
+/* Remove default spacing and ensure full-height root chain */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Optional: make body a neutral background */
+body {
+  background: #f7f7f7;
+}

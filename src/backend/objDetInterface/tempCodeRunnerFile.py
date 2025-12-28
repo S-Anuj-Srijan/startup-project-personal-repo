@@ -1,0 +1,1 @@
+getd_center_coord

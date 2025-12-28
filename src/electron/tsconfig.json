@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist-electron",
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "./main.ts",
+    "preload.ts",      // ← make sure this line is present
+    "./**/*.ts"
+  ]
+}
