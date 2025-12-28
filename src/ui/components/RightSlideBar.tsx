@@ -5,11 +5,12 @@ type Props = {
   onClose?: () => void;
 
   title?: string;
-  width?: number;        // default 360
-  topOffsetPx?: number;  // default 56 (navbar height)
-  showOverlay?: boolean; // default false
-  closeOnEsc?: boolean;  // default true
+  width?: number;
+  topOffsetPx?: number;
+  showOverlay?: boolean;
+  closeOnEsc?: boolean;
 
+  headerActions?: React.ReactNode; // NEW
   children: React.ReactNode;
 };
 
@@ -21,9 +22,9 @@ export function RightSlideBar({
   topOffsetPx = 56,
   showOverlay = false,
   closeOnEsc = true,
+  headerActions,
   children,
 }: Props) {
-  // ESC handling (optional)
   React.useEffect(() => {
     if (!closeOnEsc || !open) return;
 
@@ -37,7 +38,6 @@ export function RightSlideBar({
 
   return (
     <>
-      {/* Overlay (optional) */}
       {showOverlay && (
         <div
           onClick={() => onClose?.()}
@@ -53,7 +53,6 @@ export function RightSlideBar({
         />
       )}
 
-      {/* Right sliding bar */}
       <aside
         aria-hidden={!open}
         style={{
@@ -85,21 +84,25 @@ export function RightSlideBar({
         >
           <div style={{ fontWeight: 700 }}>{title}</div>
 
-          {onClose && (
-            <button
-              onClick={onClose}
-              style={{
-                border: "1px solid #e5e5e5",
-                background: "white",
-                borderRadius: 8,
-                padding: "6px 10px",
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              Close
-            </button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {headerActions}
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                style={{
+                  border: "1px solid #e5e5e5",
+                  background: "white",
+                  borderRadius: 8,
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
+                Close
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Content */}
