@@ -25,21 +25,25 @@ type Props = {
   edges: Edge[];
   setNodes: React.Dispatch<React.SetStateAction<Node<NodeCardData>[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
-
   onCanvasClick?: () => void;
   onNodeClick?: (nodeId: string, nodeLabel?: string) => void;
 };
 
 const DND_MIME = "application/plai-node";
 
+/* ---------- util ---------- */
 function makeId(prefix = "node") {
-  // Electron/Chromium supports crypto.randomUUID in modern versions; fallback included
+  // Electron / Chromium supports crypto.randomUUID
+  // fallback included
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyCrypto: any = globalThis.crypto;
-  const uid = anyCrypto?.randomUUID?.() ?? String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+  const uid =
+    anyCrypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return `${prefix}-${uid}`;
 }
 
+/* ---------- component ---------- */
 export function FlowCanvas({
   nodes,
   edges,
@@ -49,53 +53,65 @@ export function FlowCanvas({
   onNodeClick,
 }: Props) {
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
-  const [rf, setRf] = React.useState<ReactFlowInstance | null>(null);
+  const [rfInstance, setRfInstance] = React.useState<ReactFlowInstance | null>(null);
 
+  /* ---- node changes ---- */
   const onNodesChange: OnNodesChange = React.useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes]
   );
 
+  /* ---- edge changes ---- */
   const onEdgesChange: OnEdgesChange = React.useCallback(
     (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges]
   );
 
+  /* ---- connect nodes ---- */
   const onConnect: OnConnect = React.useCallback(
     (connection: Connection) => {
-      if (connection.source && connection.target && connection.source === connection.target) return;
-      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
+      if (connection.source === connection.target) return;
+
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...connection,
+            animated: true,
+          },
+          eds
+        )
+      );
     },
     [setEdges]
   );
 
+  /* ---- drag over canvas ---- */
   const onDragOver = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
 
+  /* ---- drop new node ---- */
   const onDrop = React.useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      if (!rf || !wrapperRef.current) return;
+      if (!rfInstance || !wrapperRef.current) return;
 
       const raw = e.dataTransfer.getData(DND_MIME);
       if (!raw) return;
 
       let item: NodeTypeItem;
       try {
-        item = JSON.parse(raw) as NodeTypeItem;
+        item = JSON.parse(raw);
       } catch {
         return;
       }
 
       const bounds = wrapperRef.current.getBoundingClientRect();
-      const clientX = e.clientX - bounds.left;
-      const clientY = e.clientY - bounds.top;
-
-      // Convert screen coords -> flow coords
-      // project() exists in React Flow v10/11; this is stable for our usage.
-      const position = rf.project({ x: clientX, y: clientY });
+      const position = rfInstance.project({
+        x: e.clientX - bounds.left,
+        y: e.clientY - bounds.top,
+      });
 
       const newNode: Node<NodeCardData> = {
         id: makeId("node"),
@@ -112,7 +128,7 @@ export function FlowCanvas({
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [rf, setNodes]
+    [rfInstance, setNodes]
   );
 
   return (
@@ -121,15 +137,32 @@ export function FlowCanvas({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        onInit={setRf}
+        onInit={setRfInstance}
+
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        fitView
+
+        /* keyboard delete */
+        deleteKeyCode={["Backspace", "Delete"]}
+
+        /* right-click delete (n8n-style) */
+        onEdgeContextMenu={(event, edge) => {
+          event.preventDefault();
+          setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+        }}
+
+        /* canvas + node clicks */
         onPaneClick={() => onCanvasClick?.()}
-        onNodeClick={(_, node) => onNodeClick?.(node.id, (node.data as NodeCardData)?.label)}
+        onNodeClick={(_, node) =>
+          onNodeClick?.(node.id, (node.data as NodeCardData)?.label)
+        }
+
+        /* drag & drop */
         onDragOver={onDragOver}
         onDrop={onDrop}
+
+        fitView
       >
         <Background />
         <Controls />

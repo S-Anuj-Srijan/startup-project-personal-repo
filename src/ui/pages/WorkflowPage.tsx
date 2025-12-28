@@ -9,7 +9,7 @@ import { RightSlideBar } from "../components/RightSlideBar";
 import { SelectionDetails, type LastClicked } from "../components/SelectionDetails";
 import { ProjectNodeTypesPanel } from "../components/ProjectNodeTypesPanel";
 import { AvailableNodeTypesPanel, type NodeTypeItem } from "../components/AvailableNodeTypesPanel";
-import type { NodeCardData } from "../components/flow/NodeCard";
+import type { NodeCardData } from "../flow/NodeCard";
 
 type SidebarView = "details" | "projectTypes" | "addTypes";
 
