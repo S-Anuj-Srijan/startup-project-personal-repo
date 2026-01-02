@@ -5,6 +5,26 @@ import { isDev } from "./util.js";
 import { getPreloadPath, getScriptPath, debugPaths } from "./pathresolver.js";
 import { runPythonScript } from "./resourceManager.js";
 
+function readNodeDefinitions() {
+  const nodesDir = getScriptPath("scripts/nodes");
+  if (!fs.existsSync(nodesDir)) return [];
+
+  const files = fs.readdirSync(nodesDir).filter((f) => f.toLowerCase().endsWith(".json"));
+
+  const defs: any[] = [];
+  for (const f of files) {
+    const abs = path.join(nodesDir, f);
+    try {
+      const raw = fs.readFileSync(abs, "utf-8");
+      const parsed = JSON.parse(raw);
+      defs.push(parsed);
+    } catch (e) {
+      console.error("[nodes] failed to parse", abs, e);
+    }
+  }
+  return defs;
+}
+
 app.on("ready", () => {
   const mainWindow = new BrowserWindow({
     width: 1000,
@@ -13,19 +33,14 @@ app.on("ready", () => {
       preload: getPreloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
     },
   });
 
-  // Debug where things live
   const dbg = debugPaths();
   console.log("[PATHS]", dbg);
   const testScriptPath = getScriptPath("scripts/hello.py");
-  console.log(
-    "[CHECK] script exists?",
-    testScriptPath,
-    fs.existsSync(testScriptPath)
-  );
+  console.log("[CHECK] script exists?", testScriptPath, fs.existsSync(testScriptPath));
 
   if (isDev()) {
     mainWindow.loadURL("http://localhost:5123");
@@ -45,3 +60,13 @@ ipcMain.handle(
     }
   }
 );
+
+// NEW: list node definition JSONs from scripts/nodes/
+ipcMain.handle("list-node-defs", async () => {
+  try {
+    const defs = readNodeDefinitions();
+    return { success: true, defs };
+  } catch (e: any) {
+    return { success: false, error: e?.message || String(e), defs: [] };
+  }
+});

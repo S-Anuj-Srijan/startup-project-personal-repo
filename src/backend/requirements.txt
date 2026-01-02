@@ -1,6 +1,0 @@
-pandas
-fastapi
-uvicorn
-asyncio
-pyserial
-python-socketio

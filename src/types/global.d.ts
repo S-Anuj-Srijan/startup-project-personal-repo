@@ -7,6 +7,8 @@ declare global {
         scriptPath: string,
         args?: string[]
       ) => Promise<{ success: boolean; output?: string[]; error?: string }>;
+
+      listNodeDefs: () => Promise<{ success: boolean; defs: any[]; error?: string }>;
     };
   }
 }

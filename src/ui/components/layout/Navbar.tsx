@@ -1,11 +1,17 @@
 import { Button } from "../Button";
 
+/* 👉 UPDATED PROPS */
 type Props = {
   panelOpen: boolean;
   onTogglePanel: () => void;
+  onGoToAiLayout: () => void;
 };
 
-export function Navbar({ panelOpen, onTogglePanel }: Props) {
+export function Navbar({
+  panelOpen,
+  onTogglePanel,
+  onGoToAiLayout,
+}: Props) {
   return (
     <div
       style={{
@@ -22,7 +28,6 @@ export function Navbar({ panelOpen, onTogglePanel }: Props) {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700 }}>plai</div>
 
-        {/* Arrow toggle (in navbar) */}
         <button
           onClick={onTogglePanel}
           aria-label={panelOpen ? "Close side panel" : "Open side panel"}
@@ -36,10 +41,8 @@ export function Navbar({ panelOpen, onTogglePanel }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            userSelect: "none",
           }}
         >
-          {/* Simple arrow: points right when closed, left when open */}
           <span
             style={{
               width: 0,
@@ -54,18 +57,30 @@ export function Navbar({ panelOpen, onTogglePanel }: Props) {
         </button>
       </div>
 
-      {/* Right: deploy */}
-      <Button
-        action={{
-          kind: "python",
-          scriptPath: "scripts/deploy_workflow.py",
-          args: ["--env=local"],
-          onSuccess: (out) => alert(out?.join("\n") || "Deploy complete"),
-          onError: (err) => alert("Deploy failed: " + err),
-        }}
-      >
-        Deploy
-      </Button>
+      {/* Right: AI Layout + Deploy */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Button
+          variant="secondary"
+          action={{
+            kind: "click",
+            onClick: onGoToAiLayout,
+          }}
+        >
+          AI Layout
+        </Button>
+
+        <Button
+          action={{
+            kind: "python",
+            scriptPath: "scripts/deploy_workflow.py",
+            args: ["--env=local"],
+            onSuccess: (out) => alert(out?.join("\n") || "Deploy complete"),
+            onError: (err) => alert("Deploy failed: " + err),
+          }}
+        >
+          Deploy
+        </Button>
+      </div>
     </div>
   );
 }

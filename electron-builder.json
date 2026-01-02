@@ -1,5 +1,5 @@
 {
-  "appId": "com.s_anuj_srijan.Gantry",
+  "appId": "com.s_anuj_srijan.Proxon",
   "files": ["dist-electron", "dist-react"],
   "extraResources": [
     { "from": "scripts/", "to": "scripts", "filter": ["**/*"] },

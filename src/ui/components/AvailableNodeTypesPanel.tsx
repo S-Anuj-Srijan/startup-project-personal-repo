@@ -1,3 +1,4 @@
+import * as React from "react";
 
 export type NodeTypeItem = {
   type: string;      // domain type: "vision" | "llm" | ...

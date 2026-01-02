@@ -1,4 +1,3 @@
-
 export type LastClicked =
   | { kind: "none" }
   | { kind: "canvas" }
@@ -32,7 +31,7 @@ export function SelectionDetails({ lastClicked }: Props) {
           Suggested actions:
           <ul style={{ marginTop: 6 }}>
             <li>Add a node</li>
-            <li>Paste/import a workflow</li>
+            <li>Connect nodes</li>
             <li>Zoom and arrange</li>
           </ul>
         </div>
@@ -58,7 +57,9 @@ export function SelectionDetails({ lastClicked }: Props) {
         </div>
 
         <div style={{ marginTop: 12, borderTop: "1px solid #eee", paddingTop: 12 }}>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Parameters (placeholder)</div>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>
+            Parameters (placeholder)
+          </div>
           <div style={{ color: "#666", fontSize: 13 }}>
             Later you will render node-specific forms here.
           </div>

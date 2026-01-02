@@ -1,9 +1,8 @@
-
 import { Handle, Position, type NodeProps } from "reactflow";
 
 export type NodeCardData = {
   label: string;
-  type: string;
+  type: string; // ✅ IMPORTANT: WorkflowPage expects this
   description?: string;
   inputs?: string[];
   outputs?: string[];
@@ -25,7 +24,6 @@ export function NodeCard({ data, selected }: NodeProps<NodeCardData>) {
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
       }}
     >
-      {/* IN handle */}
       <Handle
         type="target"
         position={Position.Left}
@@ -51,12 +49,19 @@ export function NodeCard({ data, selected }: NodeProps<NodeCardData>) {
         ) : null}
       </div>
 
-      <div style={{ padding: 12, display: "flex", justifyContent: "space-between", fontSize: 12, color: "#666" }}>
+      <div
+        style={{
+          padding: 12,
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 12,
+          color: "#666",
+        }}
+      >
         <span>In: {inCount}</span>
         <span>Out: {outCount}</span>
       </div>
 
-      {/* OUT handle */}
       <Handle
         type="source"
         position={Position.Right}

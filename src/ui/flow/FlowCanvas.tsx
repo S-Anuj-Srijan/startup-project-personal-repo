@@ -31,10 +31,7 @@ type Props = {
 
 const DND_MIME = "application/plai-node";
 
-/* ---------- util ---------- */
 function makeId(prefix = "node") {
-  // Electron / Chromium supports crypto.randomUUID
-  // fallback included
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const anyCrypto: any = globalThis.crypto;
   const uid =
@@ -43,7 +40,6 @@ function makeId(prefix = "node") {
   return `${prefix}-${uid}`;
 }
 
-/* ---------- component ---------- */
 export function FlowCanvas({
   nodes,
   edges,
@@ -55,43 +51,29 @@ export function FlowCanvas({
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const [rfInstance, setRfInstance] = React.useState<ReactFlowInstance | null>(null);
 
-  /* ---- node changes ---- */
   const onNodesChange: OnNodesChange = React.useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
     [setNodes]
   );
 
-  /* ---- edge changes ---- */
   const onEdgesChange: OnEdgesChange = React.useCallback(
     (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges]
   );
 
-  /* ---- connect nodes ---- */
   const onConnect: OnConnect = React.useCallback(
     (connection: Connection) => {
       if (connection.source === connection.target) return;
-
-      setEdges((eds) =>
-        addEdge(
-          {
-            ...connection,
-            animated: true,
-          },
-          eds
-        )
-      );
+      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
     },
     [setEdges]
   );
 
-  /* ---- drag over canvas ---- */
   const onDragOver = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  /* ---- drop new node ---- */
   const onDrop = React.useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -131,6 +113,14 @@ export function FlowCanvas({
     [rfInstance, setNodes]
   );
 
+  const deleteNodeAndEdges = React.useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    },
+    [setNodes, setEdges]
+  );
+
   return (
     <div ref={wrapperRef} style={{ height: "100%", width: "100%" }}>
       <ReactFlow
@@ -138,31 +128,29 @@ export function FlowCanvas({
         edges={edges}
         nodeTypes={nodeTypes}
         onInit={setRfInstance}
-
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-
-        /* keyboard delete */
+        onPaneClick={() => onCanvasClick?.()}
+        onNodeClick={(_, node) => onNodeClick?.(node.id, (node.data as NodeCardData)?.label)}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        fitView
         deleteKeyCode={["Backspace", "Delete"]}
-
-        /* right-click delete (n8n-style) */
         onEdgeContextMenu={(event, edge) => {
           event.preventDefault();
           setEdges((eds) => eds.filter((e) => e.id !== edge.id));
         }}
-
-        /* canvas + node clicks */
-        onPaneClick={() => onCanvasClick?.()}
-        onNodeClick={(_, node) =>
-          onNodeClick?.(node.id, (node.data as NodeCardData)?.label)
-        }
-
-        /* drag & drop */
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-
-        fitView
+        onNodeContextMenu={(event, node) => {
+          event.preventDefault();
+          deleteNodeAndEdges(node.id);
+        }}
+        onNodesDelete={(deleted) => {
+          const deletedIds = new Set(deleted.map((n) => n.id));
+          setEdges((eds) =>
+            eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target))
+          );
+        }}
       >
         <Background />
         <Controls />

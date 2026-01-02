@@ -11,6 +11,11 @@ import { ProjectNodeTypesPanel } from "../components/ProjectNodeTypesPanel";
 import { AvailableNodeTypesPanel, type NodeTypeItem } from "../components/AvailableNodeTypesPanel";
 import type { NodeCardData } from "../flow/NodeCard";
 
+/* ✅ REQUIRED: Props */
+type Props = {
+  onGoToAiLayout: () => void;
+};
+
 type SidebarView = "details" | "projectTypes" | "addTypes";
 
 const initialNodes: Node<NodeCardData>[] = [
@@ -18,37 +23,34 @@ const initialNodes: Node<NodeCardData>[] = [
     id: "node-1",
     type: "nodeCard",
     position: { x: 120, y: 120 },
-    data: { label: "YOLO Detect", type: "vision", description: "Detect objects from image/video input." },
+    data: { label: "YOLO Detect", type: "vision", description: "Detect objects from image/video input.", inputs: [], outputs: [] },
   },
   {
     id: "node-2",
     type: "nodeCard",
     position: { x: 460, y: 220 },
-    data: { label: "LLM Prompt", type: "llm", description: "Turn detections into structured JSON." },
+    data: { label: "LLM Prompt", type: "llm", description: "Turn detections into structured JSON.", inputs: [], outputs: [] },
   },
 ];
 
 const initialEdges: Edge[] = [{ id: "e-1-2", source: "node-1", target: "node-2", animated: true }];
 
-export default function WorkflowPage() {
+export default function WorkflowPage({ onGoToAiLayout }: Props) {
   const [panelOpen, setPanelOpen] = React.useState(false);
   const [lastClicked, setLastClicked] = React.useState<LastClicked>({ kind: "none" });
   const [sidebarView, setSidebarView] = React.useState<SidebarView>("details");
 
-  // Graph state is here (so sidebar + deploy + canvas can all read it)
   const [nodes, setNodes] = React.useState<Node<NodeCardData>[]>(initialNodes);
   const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
 
   const resetSelection = () => setLastClicked({ kind: "none" });
 
-  // Derive types present in current graph
   const nodeTypesInProject = React.useMemo(() => {
     const set = new Set<string>();
     for (const n of nodes) set.add(n.data?.type ?? "unknown");
     return Array.from(set).sort();
   }, [nodes]);
 
-  // Library of nodes you can add (drag these into canvas)
   const addableNodeTypes: NodeTypeItem[] = [
     { type: "vision", label: "YOLO Detect", description: "Detect objects from image/video input." },
     { type: "llm", label: "LLM Prompt", description: "Transform inputs into structured output using an LLM." },
@@ -67,7 +69,12 @@ export default function WorkflowPage() {
 
   return (
     <div className="wf-shell">
-      <Navbar panelOpen={panelOpen} onTogglePanel={() => setPanelOpen((v) => !v)} />
+      {/* ✅ PASS onGoToAiLayout */}
+      <Navbar
+        panelOpen={panelOpen}
+        onTogglePanel={() => setPanelOpen((v) => !v)}
+        onGoToAiLayout={onGoToAiLayout}
+      />
 
       <RightSlideBar
         open={panelOpen}
