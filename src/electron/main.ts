@@ -6,22 +6,22 @@ import { getPreloadPath, getScriptPath, debugPaths } from "./pathresolver.js";
 import { runPythonScript } from "./resourceManager.js";
 
 function readNodeDefinitions() {
-  const nodesDir = getScriptPath("scripts/nodes");
-  if (!fs.existsSync(nodesDir)) return [];
+  const dir = getScriptPath("scripts/nodes");
+  if (!fs.existsSync(dir)) return [];
 
-  const files = fs.readdirSync(nodesDir).filter((f) => f.toLowerCase().endsWith(".json"));
-
+  const files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".json"));
   const defs: any[] = [];
+
   for (const f of files) {
-    const abs = path.join(nodesDir, f);
+    const abs = path.join(dir, f);
     try {
       const raw = fs.readFileSync(abs, "utf-8");
-      const parsed = JSON.parse(raw);
-      defs.push(parsed);
+      defs.push(JSON.parse(raw));
     } catch (e) {
-      console.error("[nodes] failed to parse", abs, e);
+      console.error("[nodes] failed parsing:", abs, e);
     }
   }
+
   return defs;
 }
 
@@ -39,6 +39,7 @@ app.on("ready", () => {
 
   const dbg = debugPaths();
   console.log("[PATHS]", dbg);
+
   const testScriptPath = getScriptPath("scripts/hello.py");
   console.log("[CHECK] script exists?", testScriptPath, fs.existsSync(testScriptPath));
 
@@ -61,7 +62,7 @@ ipcMain.handle(
   }
 );
 
-// NEW: list node definition JSONs from scripts/nodes/
+// NEW: load node definitions from scripts/nodes/*.json
 ipcMain.handle("list-node-defs", async () => {
   try {
     const defs = readNodeDefinitions();

@@ -18,7 +18,7 @@ import "reactflow/dist/style.css";
 
 import { nodeTypes } from "./nodeTypes";
 import type { NodeCardData } from "./NodeCard";
-import type { NodeTypeItem } from "../components/AvailableNodeTypesPanel";
+import type { NodeDefinition } from "../components/AvailableNodeTypesPanel";
 
 type Props = {
   nodes: Node<NodeCardData>[];
@@ -27,9 +27,11 @@ type Props = {
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   onCanvasClick?: () => void;
   onNodeClick?: (nodeId: string, nodeLabel?: string) => void;
+
+  nodeDefsById: Record<string, NodeDefinition>;
 };
 
-const DND_MIME = "application/plai-node";
+const DND_MIME = "application/plai-node-type";
 
 function makeId(prefix = "node") {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,6 +49,7 @@ export function FlowCanvas({
   setEdges,
   onCanvasClick,
   onNodeClick,
+  nodeDefsById,
 }: Props) {
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const [rfInstance, setRfInstance] = React.useState<ReactFlowInstance | null>(null);
@@ -79,13 +82,12 @@ export function FlowCanvas({
       e.preventDefault();
       if (!rfInstance || !wrapperRef.current) return;
 
-      const raw = e.dataTransfer.getData(DND_MIME);
-      if (!raw) return;
+      const nodeTypeId = e.dataTransfer.getData(DND_MIME);
+      if (!nodeTypeId) return;
 
-      let item: NodeTypeItem;
-      try {
-        item = JSON.parse(raw);
-      } catch {
+      const def = nodeDefsById[nodeTypeId];
+      if (!def) {
+        alert(`Node definition not found: ${nodeTypeId}`);
         return;
       }
 
@@ -95,22 +97,31 @@ export function FlowCanvas({
         y: e.clientY - bounds.top,
       });
 
+      // defaults for params
+      const params: Record<string, any> = {};
+      for (const p of def.params ?? []) {
+        if ("default" in p && p.default !== undefined) params[p.id] = p.default;
+        else if (p.type === "number") params[p.id] = 0;
+        else params[p.id] = "";
+      }
+
       const newNode: Node<NodeCardData> = {
         id: makeId("node"),
         type: "nodeCard",
         position,
         data: {
-          label: item.label,
-          type: item.type,
-          description: item.description,
-          inputs: [],
-          outputs: [],
+          nodeTypeId: def.id,
+          label: def.label,
+          description: def.description,
+          inputs: def.inputs ?? [],
+          outputs: def.outputs ?? [],
+          params,
         },
       };
 
       setNodes((nds) => nds.concat(newNode));
     },
-    [rfInstance, setNodes]
+    [rfInstance, setNodes, nodeDefsById]
   );
 
   const deleteNodeAndEdges = React.useCallback(
@@ -147,9 +158,7 @@ export function FlowCanvas({
         }}
         onNodesDelete={(deleted) => {
           const deletedIds = new Set(deleted.map((n) => n.id));
-          setEdges((eds) =>
-            eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target))
-          );
+          setEdges((eds) => eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target)));
         }}
       >
         <Background />

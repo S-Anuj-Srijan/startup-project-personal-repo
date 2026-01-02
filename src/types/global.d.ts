@@ -8,7 +8,7 @@ declare global {
         args?: string[]
       ) => Promise<{ success: boolean; output?: string[]; error?: string }>;
 
-      listNodeDefs: () => Promise<{ success: boolean; defs: any[]; error?: string }>;
+      listNodeDefs: () => Promise<{ success: boolean; defs: unknown[]; error?: string }>;
     };
   }
 }

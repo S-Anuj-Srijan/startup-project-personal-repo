@@ -1,20 +1,41 @@
 import * as React from "react";
 
-export type NodeTypeItem = {
-  type: string;      // domain type: "vision" | "llm" | ...
-  label: string;     // display label: "YOLO Detect"
-  description: string;
+export type NodePort = { id: string; name: string };
+
+export type NodeParam =
+  | {
+      id: string;
+      label: string;
+      type: "string" | "number" | "textarea" | "password";
+      default?: any;
+      required?: boolean;
+    }
+  | {
+      id: string;
+      label: string;
+      type: "file";
+      required?: boolean;
+    };
+
+export type NodeDefinition = {
+  id: string;
+  label: string;
+  description?: string;
+  inputs: NodePort[];
+  outputs: NodePort[];
+  params?: NodeParam[];
+  script?: string;
 };
 
 type Props = {
-  available: NodeTypeItem[];
+  available: NodeDefinition[];
 };
 
-const DND_MIME = "application/plai-node";
+const DND_MIME = "application/plai-node-type";
 
 export function AvailableNodeTypesPanel({ available }: Props) {
-  const onDragStart = (e: React.DragEvent, item: NodeTypeItem) => {
-    e.dataTransfer.setData(DND_MIME, JSON.stringify(item));
+  const onDragStart = (e: React.DragEvent, def: NodeDefinition) => {
+    e.dataTransfer.setData(DND_MIME, def.id);
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -30,7 +51,7 @@ export function AvailableNodeTypesPanel({ available }: Props) {
       <div style={{ display: "grid", gap: 8 }}>
         {available.map((n) => (
           <div
-            key={n.type + n.label}
+            key={n.id}
             draggable
             onDragStart={(e) => onDragStart(e, n)}
             style={{
@@ -38,7 +59,7 @@ export function AvailableNodeTypesPanel({ available }: Props) {
               borderRadius: 10,
               padding: 12,
               display: "grid",
-              gap: 4,
+              gap: 6,
               cursor: "grab",
               background: "white",
             }}
@@ -46,16 +67,20 @@ export function AvailableNodeTypesPanel({ available }: Props) {
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
               <div style={{ fontWeight: 700 }}>{n.label}</div>
-              <div style={{ fontSize: 12, color: "#666" }}>{n.type}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>{n.id}</div>
             </div>
 
             <div style={{ fontSize: 13, color: "#666", lineHeight: 1.35 }}>
-              {n.description}
+              {n.description ?? "—"}
             </div>
 
-            <div style={{ marginTop: 6, fontSize: 12, color: "#999" }}>
-              Drag to canvas
+            <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#999" }}>
+              <span>In: {n.inputs?.length ?? 0}</span>
+              <span>Out: {n.outputs?.length ?? 0}</span>
+              <span>Params: {(n.params ?? []).length}</span>
             </div>
+
+            <div style={{ fontSize: 12, color: "#999" }}>Drag to canvas</div>
           </div>
         ))}
       </div>

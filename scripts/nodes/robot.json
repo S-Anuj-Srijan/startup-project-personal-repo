@@ -1,15 +1,12 @@
 {
   "id": "robot",
   "label": "Robot Node",
-  "description": "Converts input into robot instructions.",
-  "inputs": [
-    { "id": "in", "name": "Instruction JSON" }
-  ],
-  "outputs": [
-    { "id": "status", "name": "Status" }
-  ],
+  "description": "Convert JSON output into robot instructions.",
+  "inputs": [{ "id": "in", "name": "Instruction JSON" }],
+  "outputs": [{ "id": "status", "name": "Status" }],
   "params": [
     { "id": "robotIp", "label": "Robot IP", "type": "string", "default": "192.168.0.10" },
     { "id": "speed", "label": "Speed", "type": "number", "default": 1.0 }
-  ]
+  ],
+  "script": "scripts/nodes/robot.py"
 }

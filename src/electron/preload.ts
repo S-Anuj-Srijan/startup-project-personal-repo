@@ -8,3 +8,4 @@ contextBridge.exposeInMainWorld("api", {
 
   listNodeDefs: () => ipcRenderer.invoke("list-node-defs"),
 });
+  

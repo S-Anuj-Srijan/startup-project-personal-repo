@@ -1,0 +1,13 @@
+{
+  "id": "anuj",
+  "label": "anuj",
+  "description": "test node",
+  "inputs": [{ "id": "in", "name": "Input" },{ "id": "in", "name": "Input" }],
+  "outputs": [{ "id": "out", "name": "Output" }],
+  "params": [
+    { "id": "apiKey", "label": "API Key", "type": "password", "required": true },
+    { "id": "model", "label": "Model", "type": "string", "default": "gpt-4o-mini" },
+    { "id": "prompt", "label": "Prompt", "type": "textarea", "default": "Summarize the input." }
+  ],
+  "script": "scripts/nodes/llm.py"
+}
