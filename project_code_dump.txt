@@ -1,0 +1,2220 @@
+PROJECT ROOT: C:\Users\text2\Desktop\startup project\verse2\startup-project-personal-repo
+TOTAL FILES INCLUDED: 36
+================================================================================
+
+
+===== dump_project.py =====
+
+import os
+from pathlib import Path
+import fnmatch
+
+# --------- CONFIG ---------
+PROJECT_ROOT = Path(".").resolve()
+OUTPUT_FILE = PROJECT_ROOT / "project_code_dump.txt"
+
+# Only include these file types
+INCLUDE_EXTENSIONS = {".json", ".ts", ".tsx", ".js", ".py"}
+
+# Ignore directories completely
+IGNORE_DIRS = {
+    ".git",
+    "node_modules",
+    "dist",
+    "dist-electron",
+    "dist-react",
+    "build",
+    "out",
+    "release",
+    "win-unpacked",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+}
+
+# 1) Ignore by exact filename (anywhere)
+IGNORE_FILENAMES = {
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    
+    
+}
+
+# 2) Ignore by relative path (from project root)
+IGNORE_RELATIVE_PATHS = {
+    
+}
+
+# 3) Ignore by wildcard patterns
+IGNORE_PATTERNS = {
+    "*.test.ts",
+    "*.spec.ts",
+    "*.test.tsx",
+}
+
+# Safety limit
+MAX_FILE_SIZE_BYTES = 2_000_000  # 2 MB
+# --------------------------
+
+def is_ignored_dir(path: Path) -> bool:
+    return any(part in IGNORE_DIRS for part in path.parts)
+
+def matches_pattern(path: Path) -> bool:
+    return any(fnmatch.fnmatch(path.name, pattern) for pattern in IGNORE_PATTERNS)
+
+def should_include_file(path: Path) -> bool:
+    rel_path = path.relative_to(PROJECT_ROOT).as_posix()
+
+    if is_ignored_dir(path):
+        return False
+
+    if path.name in IGNORE_FILENAMES:
+        return False
+
+    if rel_path in IGNORE_RELATIVE_PATHS:
+        return False
+
+    if matches_pattern(path):
+        return False
+
+    if path.suffix.lower() not in INCLUDE_EXTENSIONS:
+        return False
+
+    try:
+        if path.stat().st_size > MAX_FILE_SIZE_BYTES:
+            return False
+    except OSError:
+        return False
+
+    return True
+
+def read_text_file(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return path.read_text(encoding="latin-1", errors="replace")
+    except Exception as e:
+        return f"[ERROR READING FILE: {e}]"
+
+def main():
+    files = []
+    for p in PROJECT_ROOT.rglob("*"):
+        if p.is_file() and should_include_file(p):
+            files.append(p)
+
+    files.sort(key=lambda x: str(x).lower())
+
+    with OUTPUT_FILE.open("w", encoding="utf-8") as out:
+        out.write(f"PROJECT ROOT: {PROJECT_ROOT}\n")
+        out.write(f"TOTAL FILES INCLUDED: {len(files)}\n")
+        out.write("=" * 80 + "\n")
+
+        for path in files:
+            rel = path.relative_to(PROJECT_ROOT)
+            out.write("\n\n")
+            out.write(f"===== {rel.as_posix()} =====\n\n")
+            out.write(read_text_file(path))
+
+    print(f"Done. Wrote {len(files)} files to: {OUTPUT_FILE}")
+
+if __name__ == "__main__":
+    main()
+
+
+===== electron-builder.json =====
+
+{
+  "appId": "com.s_anuj_srijan.Proxon",
+  "files": ["dist-electron", "dist-react"],
+  "extraResources": [
+    { "from": "scripts/", "to": "scripts", "filter": ["**/*"] },
+    { "from": "python/", "to": "python", "filter": ["**/*"] }  // optional: if you ship Python
+  ],
+  "icon": "./desktopimg.png",
+  "mac": { "target": "dmg" },
+  "linux": { "target": "AppImage", "category": "Utility" },
+  "win": { "target": ["portable", "msi"] }
+}
+
+
+===== eslint.config.js =====
+
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { globalIgnores } from 'eslint/config'
+
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+  },
+])
+
+
+===== package.json =====
+
+{
+  "name": "gantry",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "npm-run-all transpile:electron --parallel devreact watch:electron develectron",
+    "devreact": "vite",
+    "develectron": "cross-env NODE_ENV=development electron .",
+    "watch:electron": "tsc --project src/electron/tsconfig.json --watch",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "transpile:electron": "tsc --project src/electron/tsconfig.json",
+    "dist:mac": "npm run transpile:electron && npm run build && electron-builder --mac --arm64",
+    "dist:linux": "npm run transpile:electron && npm run build && electron-builder --linux --x64",
+    "dist:win": "npm run transpile:electron && npm run build && electron-builder --win --x64"
+  },
+  "dependencies": {
+    "os-utils": "^0.0.14",
+    "python-shell": "^5.0.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "reactflow": "^11.11.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/os-utils": "^0.0.4",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "cross-env": "^10.0.0",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.32.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.39.0",
+    "vite": "^7.1.0"
+  }
+}
+
+
+===== scripts/nodes/llm.json =====
+
+{
+  "id": "llm",
+  "label": "LLM Prompt",
+  "description": "Shows apiKey + prompt in a Tkinter window (test).",
+  "inputs": [{ "id": "in", "name": "Input" }],
+  "outputs": [{ "id": "out", "name": "Output" }],
+  "params": [
+    { "id": "apiKey", "label": "API Key", "type": "password", "required": true },
+    { "id": "prompt", "label": "Prompt", "type": "textarea", "required": true }
+  ],
+  "script": "scripts/nodes/llm.py"
+}
+
+
+===== scripts/nodes/llm.py =====
+
+import json
+import sys
+import tkinter as tk
+
+def main():
+    payload = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
+    params = payload.get("params", {})
+    node_id = payload.get("nodeId", "unknown")
+
+    api_key = params.get("apiKey", "")
+    prompt = params.get("prompt", "")
+
+    root = tk.Tk()
+    root.title(f"LLM Node - {node_id}")
+    root.geometry("520x320")
+
+    tk.Label(root, text=f"Node: {node_id}", font=("Segoe UI", 12, "bold")).pack(pady=10)
+
+    tk.Label(root, text="apiKey:", anchor="w").pack(fill="x", padx=12)
+    tk.Label(root, text=str(api_key), anchor="w", wraplength=480, justify="left").pack(fill="x", padx=12, pady=4)
+
+    tk.Label(root, text="prompt:", anchor="w").pack(fill="x", padx=12)
+    txt = tk.Text(root, height=10)
+    txt.pack(fill="both", expand=True, padx=12, pady=6)
+    txt.insert("1.0", str(prompt))
+    txt.configure(state="disabled")
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
+
+
+===== scripts/nodes/robot.json =====
+
+{
+  "id": "robot",
+  "label": "Robot Node",
+  "description": "Shows robotIp and robotSpeed in a Tkinter window (test).",
+  "inputs": [{ "id": "in", "name": "Commands" }],
+  "outputs": [],
+  "params": [
+    { "id": "robotIp", "label": "Robot IP", "type": "string", "required": true },
+    { "id": "robotSpeed", "label": "Robot Speed", "type": "number", "default": 50 }
+  ],
+  "script": "scripts/nodes/robot.py"
+}
+
+
+===== scripts/nodes/robot.py =====
+
+import json
+import sys
+import tkinter as tk
+
+def main():
+    payload = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
+    params = payload.get("params", {})
+    node_id = payload.get("nodeId", "unknown")
+
+    robot_ip = params.get("robotIp", "")
+    robot_speed = params.get("robotSpeed", 0)
+
+    root = tk.Tk()
+    root.title(f"Robot Node - {node_id}")
+    root.geometry("420x220")
+
+    tk.Label(root, text=f"Node: {node_id}", font=("Segoe UI", 12, "bold")).pack(pady=10)
+
+    tk.Label(root, text=f"Robot IP: {robot_ip}", font=("Segoe UI", 10)).pack(pady=6)
+    tk.Label(root, text=f"Robot Speed: {robot_speed}", font=("Segoe UI", 10)).pack(pady=6)
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
+
+
+===== scripts/nodes/yolo.json =====
+
+{
+  "id": "yolo",
+  "label": "YOLO Detect",
+  "description": "Opens camera and (optionally) runs YOLO with the selected .pt file.",
+  "inputs": [],
+  "outputs": [{ "id": "out", "name": "Detections" }],
+  "params": [
+    { "id": "modelFile", "label": "Model (.pt)", "type": "file", "required": true }
+  ],
+  "script": "scripts/nodes/yolo.py"
+}
+
+
+===== scripts/nodes/yolo.py =====
+
+import json
+import sys
+
+def main():
+    payload = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
+    params = payload.get("params", {})
+    node_id = payload.get("nodeId", "unknown")
+
+    model_obj = params.get("modelFile", {})
+    model_path = ""
+    if isinstance(model_obj, dict):
+        model_path = model_obj.get("path") or model_obj.get("name") or ""
+    elif isinstance(model_obj, str):
+        model_path = model_obj
+
+    import cv2
+
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        raise RuntimeError("Cannot open camera (index 0). If you run 2 YOLO nodes, the 2nd will likely fail.)")
+
+    win = f"YOLO Node - {node_id}"
+
+    yolo = None
+    try:
+        from ultralytics import YOLO
+        if model_path:
+            yolo = YOLO(model_path)
+    except Exception:
+        yolo = None
+
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+
+        if yolo is not None:
+            try:
+                results = yolo(frame, verbose=False)
+                frame = results[0].plot()
+            except Exception:
+                pass
+        else:
+            cv2.putText(
+                frame,
+                "ultralytics not installed OR model path missing",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 0, 255),
+                2,
+            )
+            cv2.putText(
+                frame,
+                f"model: {model_path}",
+                (20, 70),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 255),
+                2,
+            )
+
+        cv2.imshow(win, frame)
+        if cv2.waitKey(1) & 0xFF == 27:  # ESC
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
+
+
+===== src/electron/anuj.py =====
+
+print("hi ")
+
+===== src/electron/main.ts =====
+
+import { app, BrowserWindow, ipcMain } from "electron";
+import path from "path";
+import fs from "fs";
+import { isDev } from "./util.js";
+import { getPreloadPath, getScriptPath, debugPaths } from "./pathresolver.js";
+import { runPythonScript, spawnPythonProcess } from "./resourceManager.js";
+
+function readNodeDefinitions() {
+  const dir = getScriptPath("scripts/nodes");
+  if (!fs.existsSync(dir)) return [];
+
+  const files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".json"));
+  const defs: any[] = [];
+
+  for (const f of files) {
+    const abs = path.join(dir, f);
+    try {
+      const raw = fs.readFileSync(abs, "utf-8");
+      defs.push(JSON.parse(raw));
+    } catch (e) {
+      console.error("[nodes] failed parsing:", abs, e);
+    }
+  }
+
+  return defs;
+}
+
+app.on("ready", () => {
+  const mainWindow = new BrowserWindow({
+    width: 1000,
+    height: 700,
+    webPreferences: {
+      preload: getPreloadPath(),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  console.log("[PATHS]", debugPaths());
+
+  if (isDev()) {
+    mainWindow.loadURL("http://localhost:5123");
+  } else {
+    mainWindow.loadFile(path.join(app.getAppPath(), "/dist-react/index.html"));
+  }
+});
+
+ipcMain.handle(
+  "run-python",
+  async (_evt, { scriptPath, args }: { scriptPath: string; args?: string[] }) => {
+    try {
+      const out = await runPythonScript(scriptPath, args ?? []);
+      return { success: true, output: out };
+    } catch (e: any) {
+      return { success: false, error: e?.message || String(e) };
+    }
+  }
+);
+
+// Load node definitions from scripts/nodes/*.json
+ipcMain.handle("list-node-defs", async () => {
+  try {
+    const defs = readNodeDefinitions();
+    return { success: true, defs };
+  } catch (e: any) {
+    return { success: false, error: e?.message || String(e), defs: [] };
+  }
+});
+
+// Spawn one python process per node instance (non-blocking)
+ipcMain.handle("run-workflow", async (_evt, payload: any) => {
+  try {
+    const nodes = payload?.nodes ?? [];
+    const nodeDefsById = payload?.nodeDefsById ?? {};
+
+    const spawned: Array<{
+      nodeId: string;
+      nodeTypeId: string;
+      pid: number | null;
+      script: string;
+    }> = [];
+
+    for (const n of nodes) {
+      const nodeId = String(n.id);
+      const nodeTypeId = String(n.nodeTypeId);
+
+      const def = nodeDefsById[nodeTypeId];
+      const script = def?.script;
+
+      if (!script) {
+        throw new Error(`Node type '${nodeTypeId}' has no script in its JSON definition.`);
+      }
+
+      const params = n.params ?? {};
+      const inputs = n.inputs ?? [];
+      const outputs = n.outputs ?? [];
+
+      const jsonArg = JSON.stringify({
+        nodeId,
+        nodeTypeId,
+        label: n.label,
+        params,
+        inputs,
+        outputs,
+      });
+
+      const res = spawnPythonProcess(script, [jsonArg]);
+
+      spawned.push({
+        nodeId,
+        nodeTypeId,
+        pid: res.pid,
+        script: res.script,
+      });
+    }
+
+    return { success: true, spawned };
+  } catch (e: any) {
+    return { success: false, error: e?.message || String(e) };
+  }
+});
+
+
+===== src/electron/pathresolver.ts =====
+
+import { app } from "electron";
+import path from "path";
+import fs from "fs";
+
+export function getPreloadPath() {
+  // Option A: preload is inside app files
+  return path.join(app.getAppPath(), "dist-electron", "preload.js");
+}
+
+/** Resolve script path in dev (cwd) and prod (resources). Pass e.g. "scripts/hello.py". */
+export function getScriptPath(rel: string) {
+  const p = app.isPackaged
+    ? path.join(process.resourcesPath, rel)
+    : path.join(process.cwd(), rel);
+  return p;
+}
+
+/** OPTIONAL: Resolve a bundled Python interpreter if you ship one. */
+export function getBundledPythonPath(): string | null {
+  if (!app.isPackaged) return null;
+
+  // Example layout you place under your repo's ./python/ folder (copied via extraResources)
+  // - Windows:   python/win/python.exe
+  // - macOS:     python/mac/bin/python3
+  // - Linux:     python/linux/bin/python3
+  const base = path.join(process.resourcesPath, "python");
+  const candidates =
+    process.platform === "win32"
+      ? [path.join(base, "win", "python.exe")]
+      : process.platform === "darwin"
+      ? [path.join(base, "mac", "bin", "python3")]
+      : [path.join(base, "linux", "bin", "python3")];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+/** FOR DEBUGGING: print where we think things are. */
+export function debugPaths() {
+  const info = {
+    isPackaged: app.isPackaged,
+    appPath: app.getAppPath(),
+    resourcesPath: process.resourcesPath,
+    scriptExampleDev: path.join(process.cwd(), "scripts", "hello.py"),
+    scriptExampleProd: path.join(process.resourcesPath, "scripts", "hello.py"),
+  };
+  return info;
+}
+
+
+===== src/electron/preload.ts =====
+
+import { contextBridge, ipcRenderer } from "electron";
+
+console.log("[preload] loaded");
+
+contextBridge.exposeInMainWorld("api", {
+  runPython: (scriptPath: string, args: string[] = []) =>
+    ipcRenderer.invoke("run-python", { scriptPath, args }),
+
+  listNodeDefs: () => ipcRenderer.invoke("list-node-defs"),
+
+  runWorkflow: (payload: any) => ipcRenderer.invoke("run-workflow", payload),
+});
+
+
+===== src/electron/resourceManager.ts =====
+
+import { PythonShell } from "python-shell";
+import path from "path";
+import fs from "fs";
+import { spawn } from "child_process";
+import { getScriptPath, getBundledPythonPath } from "./pathresolver.js";
+
+/** Blocking execution for short scripts (deploy_workflow.py, ai_run.py, etc.) */
+export async function runPythonScript(scriptRelOrAbs: string, args: string[] = []) {
+  const abs = path.isAbsolute(scriptRelOrAbs) ? scriptRelOrAbs : getScriptPath(scriptRelOrAbs);
+
+  if (!fs.existsSync(abs)) {
+    throw new Error(`Python script not found at: ${abs}`);
+  }
+
+  let pythonPath = getBundledPythonPath();
+  if (!pythonPath) {
+    pythonPath = process.platform === "win32" ? "py" : "python3";
+  }
+
+  // If using "py" on Windows, use "-3" to force Python 3
+  const pythonOptions: string[] = ["-u"];
+  const finalArgs =
+    process.platform === "win32" && pythonPath.toLowerCase() === "py"
+      ? ["-3", abs, ...args]
+      : args;
+
+  // PythonShell.run expects script path separately; if using "py -3", we pass via pythonOptions
+  const messages = await PythonShell.run(abs, {
+    args: finalArgs,
+    pythonPath,
+    pythonOptions,
+  });
+
+  return messages;
+}
+
+function resolvePythonPath(): string {
+  const bundled = getBundledPythonPath();
+  if (bundled) return bundled;
+
+  if (process.platform === "win32") return "py";
+  return "python3";
+}
+
+function resolveScriptAbs(scriptRelOrAbs: string): string {
+  const abs = path.isAbsolute(scriptRelOrAbs) ? scriptRelOrAbs : getScriptPath(scriptRelOrAbs);
+
+  if (!fs.existsSync(abs)) {
+    throw new Error(`Python script not found at: ${abs}`);
+  }
+  return abs;
+}
+
+/**
+ * Non-blocking spawn for long-running scripts (tkinter windows, opencv loops, etc.)
+ * Does NOT wait for script to exit.
+ */
+export function spawnPythonProcess(scriptRelOrAbs: string, args: string[] = []) {
+  const pythonPath = resolvePythonPath();
+  const scriptAbs = resolveScriptAbs(scriptRelOrAbs);
+
+  const finalArgs =
+    process.platform === "win32" && pythonPath.toLowerCase() === "py"
+      ? ["-3", scriptAbs, ...args]
+      : [scriptAbs, ...args];
+
+  const child = spawn(pythonPath, finalArgs, {
+    stdio: "ignore",
+    detached: true,
+    windowsHide: false,
+  });
+
+  child.unref();
+
+  return { pid: child.pid ?? null, script: scriptAbs };
+}
+
+
+===== src/electron/tsconfig.json =====
+
+{
+  "compilerOptions": {
+    "outDir": "../../dist-electron",
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "./main.ts",
+    "preload.ts",      // ← make sure this line is present
+    "./**/*.ts"
+  ]
+}
+
+
+===== src/electron/util.ts =====
+
+export function isDev(): boolean{
+    return process.env.NODE_ENV ==='development';
+}
+
+===== src/types/global.d.ts =====
+
+export {};
+
+declare global {
+  interface Window {
+    api: {
+      runPython: (
+        scriptPath: string,
+        args?: string[]
+      ) => Promise<{ success: boolean; output?: string[]; error?: string }>;
+
+      listNodeDefs: () => Promise<{ success: boolean; defs: unknown[]; error?: string }>;
+
+      runWorkflow: (
+        payload: any
+      ) => Promise<{ success: boolean; spawned?: any[]; error?: string }>;
+    };
+  }
+}
+
+
+===== src/ui/App.tsx =====
+
+import * as React from "react";
+import WorkflowPage from "./pages/WorkflowPage";
+import BlueprintLayoutPage from "./pages/BlueprintLayoutPage";
+
+export default function App() {
+  const [page, setPage] = React.useState<"workflow" | "ai-layout">("workflow");
+
+  if (page === "ai-layout") {
+    return <BlueprintLayoutPage onBackToWorkflow={() => setPage("workflow")} />;
+  }
+
+  return <WorkflowPage onGoToAiLayout={() => setPage("ai-layout")} />;
+}
+
+
+===== src/ui/components/AvailableNodeTypesPanel.tsx =====
+
+import * as React from "react";
+
+export type NodePort = { id: string; name: string };
+
+export type NodeParam =
+  | {
+      id: string;
+      label: string;
+      type: "string" | "number" | "textarea" | "password";
+      default?: any;
+      required?: boolean;
+    }
+  | {
+      id: string;
+      label: string;
+      type: "file";
+      required?: boolean;
+    };
+
+export type NodeDefinition = {
+  id: string;
+  label: string;
+  description?: string;
+  inputs: NodePort[];
+  outputs: NodePort[];
+  params?: NodeParam[];
+  script?: string;
+};
+
+type Props = {
+  available: NodeDefinition[];
+};
+
+const DND_MIME = "application/plai-node-type";
+
+export function AvailableNodeTypesPanel({ available }: Props) {
+  const onDragStart = (e: React.DragEvent, def: NodeDefinition) => {
+    e.dataTransfer.setData(DND_MIME, def.id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div>
+        <div style={{ fontWeight: 700 }}>Addable node types</div>
+        <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>
+          Drag a node type into the canvas to create a new node.
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 8 }}>
+        {available.map((n) => (
+          <div
+            key={n.id}
+            draggable
+            onDragStart={(e) => onDragStart(e, n)}
+            style={{
+              border: "1px solid #eee",
+              borderRadius: 10,
+              padding: 12,
+              display: "grid",
+              gap: 6,
+              cursor: "grab",
+              background: "white",
+            }}
+            title="Drag into canvas"
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ fontWeight: 700 }}>{n.label}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>{n.id}</div>
+            </div>
+
+            <div style={{ fontSize: 13, color: "#666", lineHeight: 1.35 }}>
+              {n.description ?? "—"}
+            </div>
+
+            <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#999" }}>
+              <span>In: {n.inputs?.length ?? 0}</span>
+              <span>Out: {n.outputs?.length ?? 0}</span>
+              <span>Params: {(n.params ?? []).length}</span>
+            </div>
+
+            <div style={{ fontSize: 12, color: "#999" }}>Drag to canvas</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/components/Button.tsx =====
+
+import * as React from "react";
+
+type Variant = "primary" | "secondary" | "ghost";
+
+type PythonAction = {
+  kind: "python";
+  scriptPath: string;
+  args?: string[];
+  onSuccess?: (output?: string[]) => void;
+  onError?: (error: string) => void;
+};
+
+type ClickAction = {
+  kind: "click";
+  onClick: () => void | Promise<void>;
+};
+
+type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  action: PythonAction | ClickAction;
+};
+
+const base =
+  "inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition " +
+  "focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+
+const variants: Record<Variant, string> = {
+  primary: "bg-black text-white hover:bg-neutral-800 focus:ring-black",
+  secondary: "bg-neutral-200 text-black hover:bg-neutral-300 focus:ring-neutral-400",
+  ghost: "bg-transparent text-black hover:bg-neutral-100 focus:ring-neutral-300",
+};
+
+export function Button({
+  variant = "primary",
+  className = "",
+  action,
+  children,
+  disabled,
+  ...rest
+}: Props) {
+  const [busy, setBusy] = React.useState(false);
+
+  const handleClick = async () => {
+    if (disabled || busy) return;
+
+    if (action.kind === "click") {
+      await action.onClick();
+      return;
+    }
+
+    // action.kind === "python"
+    if (!window.api?.runPython) {
+      alert("Bridge not ready — check preload & main wiring.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await window.api.runPython(action.scriptPath, action.args ?? []);
+      if (result.success) {
+        action.onSuccess?.(result.output);
+      } else {
+        action.onError?.(result.error ?? "Unknown Python error");
+      }
+    } catch (err) {
+      action.onError?.(String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      {...rest}
+      disabled={disabled || busy}
+      className={`${base} ${variants[variant]} ${className}`}
+      onClick={handleClick}
+    >
+      {busy ? "Running..." : children}
+    </button>
+  );
+}
+
+
+===== src/ui/components/layout/Navbar.tsx =====
+
+import { Button } from "../Button";
+
+type Props = {
+  panelOpen: boolean;
+  onTogglePanel: () => void;
+  onGoToAiLayout: () => void;
+  onDeployWorkflow: () => void;
+};
+
+export function Navbar({
+  panelOpen,
+  onTogglePanel,
+  onGoToAiLayout,
+  onDeployWorkflow,
+}: Props) {
+  return (
+    <div
+      style={{
+        height: 56,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0 16px",
+        borderBottom: "1px solid #e5e5e5",
+        background: "white",
+      }}
+    >
+      {/* Left: brand + panel toggle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 700 }}>plai</div>
+
+        <button
+          onClick={onTogglePanel}
+          aria-label={panelOpen ? "Close side panel" : "Open side panel"}
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 10,
+            border: "1px solid #e5e5e5",
+            background: "white",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              width: 0,
+              height: 0,
+              borderTop: "6px solid transparent",
+              borderBottom: "6px solid transparent",
+              borderLeft: "8px solid #111",
+              transform: panelOpen ? "rotate(180deg)" : "rotate(0deg)",
+              transition: "transform 180ms ease",
+            }}
+          />
+        </button>
+      </div>
+
+      {/* Right: AI Layout + Deploy */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Button
+          variant="secondary"
+          action={{
+            kind: "click",
+            onClick: onGoToAiLayout,
+          }}
+        >
+          AI Layout
+        </Button>
+
+        <Button
+          action={{
+            kind: "click",
+            onClick: onDeployWorkflow,
+          }}
+        >
+          Deploy
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/components/ProjectNodeTypesPanel.tsx =====
+
+
+type Props = {
+  nodeTypesInProject: string[];
+};
+
+export function ProjectNodeTypesPanel({ nodeTypesInProject }: Props) {
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div>
+        <div style={{ fontWeight: 700 }}>Node types used in this workflow</div>
+        <div style={{ color: "#666", fontSize: 13, marginTop: 4 }}>
+          These types currently exist in the project graph.
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 8 }}>
+        {nodeTypesInProject.length === 0 ? (
+          <div style={{ color: "#999", fontSize: 13 }}>No nodes yet.</div>
+        ) : (
+          nodeTypesInProject.map((t) => (
+            <div
+              key={t}
+              style={{
+                border: "1px solid #eee",
+                borderRadius: 10,
+                padding: 12,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{t}</span>
+              <span style={{ color: "#666", fontSize: 12 }}>In project</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/components/RightSlideBar.tsx =====
+
+import * as React from "react";
+
+type Props = {
+  open: boolean;
+  onClose?: () => void;
+
+  title?: string;
+  width?: number;
+  topOffsetPx?: number;
+  showOverlay?: boolean;
+  closeOnEsc?: boolean;
+
+  headerActions?: React.ReactNode; // NEW
+  children: React.ReactNode;
+};
+
+export function RightSlideBar({
+  open,
+  onClose,
+  title = "Details",
+  width = 360,
+  topOffsetPx = 56,
+  showOverlay = false,
+  closeOnEsc = true,
+  headerActions,
+  children,
+}: Props) {
+  React.useEffect(() => {
+    if (!closeOnEsc || !open) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose?.();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, closeOnEsc, onClose]);
+
+  return (
+    <>
+      {showOverlay && (
+        <div
+          onClick={() => onClose?.()}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.22)",
+            opacity: open ? 1 : 0,
+            transition: "opacity 180ms ease",
+            pointerEvents: open ? "auto" : "none",
+            zIndex: 40,
+          }}
+        />
+      )}
+
+      <aside
+        aria-hidden={!open}
+        style={{
+          position: "fixed",
+          top: topOffsetPx,
+          right: 0,
+          height: `calc(100vh - ${topOffsetPx}px)`,
+          width,
+          background: "#fff",
+          borderLeft: "1px solid #e5e5e5",
+          boxShadow: "-14px 0 28px rgba(0,0,0,0.08)",
+          transform: open ? "translateX(0)" : `translateX(${width}px)`,
+          transition: "transform 180ms ease",
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "14px 14px 12px 14px",
+            borderBottom: "1px solid #f0f0f0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>{title}</div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {headerActions}
+
+            {onClose && (
+              <button
+                onClick={onClose}
+                style={{
+                  border: "1px solid #e5e5e5",
+                  background: "white",
+                  borderRadius: 8,
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                }}
+              >
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: 14, overflow: "auto", flex: 1 }}>{children}</div>
+      </aside>
+    </>
+  );
+}
+
+
+===== src/ui/components/SelectionDetails.tsx =====
+
+import type { Node } from "reactflow";
+import type { NodeCardData } from "../flow/NodeCard";
+import type { NodeDefinition, NodeParam } from "./AvailableNodeTypesPanel";
+
+export type LastClicked =
+  | { kind: "none" }
+  | { kind: "canvas" }
+  | { kind: "node"; nodeId: string; nodeLabel?: string }
+  | { kind: "deploy" };
+
+type Props = {
+  lastClicked: LastClicked;
+
+  selectedNode?: Node<NodeCardData> | null;
+  selectedDef?: NodeDefinition | null;
+
+  onUpdateNodeParams?: (nodeId: string, nextParams: Record<string, any>) => void;
+};
+
+function Field({
+  p,
+  value,
+  onChange,
+}: {
+  p: NodeParam;
+  value: any;
+  onChange: (v: any) => void;
+}) {
+  const label = (
+    <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+      {p.label} {p.required ? <span style={{ color: "#b00020" }}>*</span> : null}
+    </div>
+  );
+
+  if (p.type === "textarea") {
+    return (
+      <div>
+        {label}
+        <textarea
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          rows={5}
+          style={{ width: "100%", border: "1px solid #e5e5e5", borderRadius: 10, padding: 10 }}
+        />
+      </div>
+    );
+  }
+
+  if (p.type === "password") {
+    return (
+      <div>
+        {label}
+        <input
+          type="password"
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ width: "100%", border: "1px solid #e5e5e5", borderRadius: 10, padding: 10 }}
+        />
+      </div>
+    );
+  }
+
+  if (p.type === "number") {
+    return (
+      <div>
+        {label}
+        <input
+          type="number"
+          value={value ?? 0}
+          onChange={(e) => onChange(Number(e.target.value))}
+          style={{ width: "100%", border: "1px solid #e5e5e5", borderRadius: 10, padding: 10 }}
+        />
+      </div>
+    );
+  }
+
+  if (p.type === "file") {
+    return (
+      <div>
+        {label}
+        <input
+          type="file"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+
+            // Electron usually provides file.path
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const anyF: any = f;
+            const filePath = anyF.path ?? f.name;
+
+            onChange({ name: f.name, path: filePath });
+          }}
+          style={{ width: "100%" }}
+        />
+
+        {value?.name ? (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#444" }}>
+            Selected: <span style={{ fontWeight: 700 }}>{value.name}</span>
+            {value.path ? <div style={{ color: "#666" }}>{value.path}</div> : null}
+          </div>
+        ) : (
+          <div style={{ marginTop: 6, fontSize: 12, color: "#999" }}>No file selected.</div>
+        )}
+      </div>
+    );
+  }
+
+  // string
+  return (
+    <div>
+      {label}
+      <input
+        type="text"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ width: "100%", border: "1px solid #e5e5e5", borderRadius: 10, padding: 10 }}
+      />
+    </div>
+  );
+}
+
+export function SelectionDetails({
+  lastClicked,
+  selectedNode,
+  selectedDef,
+  onUpdateNodeParams,
+}: Props) {
+  if (lastClicked.kind === "none") {
+    return (
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Nothing selected</div>
+        <div style={{ color: "#666", fontSize: 13 }}>Click a node to view details.</div>
+      </div>
+    );
+  }
+
+  if (lastClicked.kind === "canvas") {
+    return (
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Canvas</div>
+        <div style={{ color: "#666", fontSize: 13 }}>You clicked the workspace background.</div>
+      </div>
+    );
+  }
+
+  if (lastClicked.kind === "deploy") {
+    return (
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Deploy</div>
+        <div style={{ color: "#666", fontSize: 13 }}>
+          You last clicked Deploy. You can show logs, status, or output here.
+        </div>
+      </div>
+    );
+  }
+
+  // node selected
+  const node = selectedNode ?? null;
+  const def = selectedDef ?? null;
+
+  if (!node || !def) {
+    return (
+      <div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Node Selected</div>
+        <div style={{ color: "#666", fontSize: 13 }}>Definition not loaded yet.</div>
+      </div>
+    );
+  }
+
+  const params = node.data.params ?? {};
+
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div>
+        <div style={{ fontWeight: 800 }}>{node.data.label}</div>
+        <div style={{ color: "#666", fontSize: 12, marginTop: 4 }}>
+          Type: <span style={{ fontWeight: 700 }}>{node.data.nodeTypeId}</span>
+        </div>
+        {node.data.description ? (
+          <div style={{ color: "#666", fontSize: 13, marginTop: 6 }}>{node.data.description}</div>
+        ) : null}
+      </div>
+
+      <div style={{ borderTop: "1px solid #eee", paddingTop: 12, display: "grid", gap: 12 }}>
+        <div style={{ fontWeight: 700 }}>Node Parameters</div>
+
+        {(def.params ?? []).length === 0 ? (
+          <div style={{ color: "#999", fontSize: 13 }}>No parameters for this node.</div>
+        ) : (
+          (def.params ?? []).map((p: NodeParam) => (
+            <Field
+              key={p.id}
+              p={p}
+              value={params[p.id]}
+              onChange={(v) => {
+                const next = { ...params, [p.id]: v };
+                onUpdateNodeParams?.(node.id, next);
+              }}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/flow/FlowCanvas.tsx =====
+
+import * as React from "react";
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
+  type Connection,
+  type Edge,
+  type Node,
+  type OnConnect,
+  type OnEdgesChange,
+  type OnNodesChange,
+  type ReactFlowInstance,
+} from "reactflow";
+import "reactflow/dist/style.css";
+
+import { nodeTypes } from "./nodeTypes";
+import type { NodeCardData } from "./NodeCard";
+import type { NodeDefinition } from "../components/AvailableNodeTypesPanel";
+
+type Props = {
+  nodes: Node<NodeCardData>[];
+  edges: Edge[];
+  setNodes: React.Dispatch<React.SetStateAction<Node<NodeCardData>[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  onCanvasClick?: () => void;
+  onNodeClick?: (nodeId: string, nodeLabel?: string) => void;
+
+  nodeDefsById: Record<string, NodeDefinition>;
+};
+
+const DND_MIME = "application/plai-node-type";
+
+function makeId(prefix = "node") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const anyCrypto: any = globalThis.crypto;
+  const uid =
+    anyCrypto?.randomUUID?.() ??
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${uid}`;
+}
+
+export function FlowCanvas({
+  nodes,
+  edges,
+  setNodes,
+  setEdges,
+  onCanvasClick,
+  onNodeClick,
+  nodeDefsById,
+}: Props) {
+  const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const [rfInstance, setRfInstance] = React.useState<ReactFlowInstance | null>(null);
+
+  const onNodesChange: OnNodesChange = React.useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    [setNodes]
+  );
+
+  const onEdgesChange: OnEdgesChange = React.useCallback(
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    [setEdges]
+  );
+
+  const onConnect: OnConnect = React.useCallback(
+    (connection: Connection) => {
+      if (connection.source === connection.target) return;
+      setEdges((eds) => addEdge({ ...connection, animated: true }, eds));
+    },
+    [setEdges]
+  );
+
+  const onDragOver = React.useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = React.useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!rfInstance || !wrapperRef.current) return;
+
+      const nodeTypeId = e.dataTransfer.getData(DND_MIME);
+      if (!nodeTypeId) return;
+
+      const def = nodeDefsById[nodeTypeId];
+      if (!def) {
+        alert(`Node definition not found: ${nodeTypeId}`);
+        return;
+      }
+
+      const bounds = wrapperRef.current.getBoundingClientRect();
+      const position = rfInstance.project({
+        x: e.clientX - bounds.left,
+        y: e.clientY - bounds.top,
+      });
+
+      // defaults for params
+      const params: Record<string, any> = {};
+      for (const p of def.params ?? []) {
+        if ("default" in p && p.default !== undefined) params[p.id] = p.default;
+        else if (p.type === "number") params[p.id] = 0;
+        else params[p.id] = "";
+      }
+
+      const newNode: Node<NodeCardData> = {
+        id: makeId("node"),
+        type: "nodeCard",
+        position,
+        data: {
+          nodeTypeId: def.id,
+          label: def.label,
+          description: def.description,
+          inputs: def.inputs ?? [],
+          outputs: def.outputs ?? [],
+          params,
+        },
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+    },
+    [rfInstance, setNodes, nodeDefsById]
+  );
+
+  const deleteNodeAndEdges = React.useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    },
+    [setNodes, setEdges]
+  );
+
+  return (
+    <div ref={wrapperRef} style={{ height: "100%", width: "100%" }}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onInit={setRfInstance}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onPaneClick={() => onCanvasClick?.()}
+        onNodeClick={(_, node) => onNodeClick?.(node.id, (node.data as NodeCardData)?.label)}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        fitView
+        deleteKeyCode={["Backspace", "Delete"]}
+        onEdgeContextMenu={(event, edge) => {
+          event.preventDefault();
+          setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+        }}
+        onNodeContextMenu={(event, node) => {
+          event.preventDefault();
+          deleteNodeAndEdges(node.id);
+        }}
+        onNodesDelete={(deleted) => {
+          const deletedIds = new Set(deleted.map((n) => n.id));
+          setEdges((eds) => eds.filter((e) => !deletedIds.has(e.source) && !deletedIds.has(e.target)));
+        }}
+      >
+        <Background />
+        <Controls />
+        <MiniMap />
+      </ReactFlow>
+    </div>
+  );
+}
+
+
+===== src/ui/flow/NodeCard.tsx =====
+
+import { Handle, Position, type NodeProps } from "reactflow";
+
+export type NodeCardData = {
+  nodeTypeId: string;
+  label: string;
+  description?: string;
+
+  inputs: { id: string; name: string }[];
+  outputs: { id: string; name: string }[];
+
+  params: Record<string, any>;
+};
+
+export function NodeCard({ data, selected }: NodeProps<NodeCardData>) {
+  const inPorts = data.inputs ?? [];
+  const outPorts = data.outputs ?? [];
+
+  const rowH = 18;
+  const topPad = 18;
+
+  return (
+    <div
+      style={{
+        minWidth: 250,
+        borderRadius: 12,
+        border: selected ? "2px solid #111" : "1px solid #e6e6e6",
+        background: "white",
+        boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+        overflow: "hidden",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+        position: "relative",
+      }}
+    >
+      {/* INPUT HANDLES */}
+      {inPorts.map((p, i) => (
+        <Handle
+          key={`in-${p.id}`}
+          id={p.id}
+          type="target"
+          position={Position.Left}
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            border: "1px solid #111",
+            background: "white",
+            top: topPad + i * rowH,
+          }}
+        />
+      ))}
+
+      {/* OUTPUT HANDLES */}
+      {outPorts.map((p, i) => (
+        <Handle
+          key={`out-${p.id}`}
+          id={p.id}
+          type="source"
+          position={Position.Right}
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            border: "1px solid #111",
+            background: "white",
+            top: topPad + i * rowH,
+          }}
+        />
+      ))}
+
+      <div style={{ padding: 12, borderBottom: "1px solid #f0f0f0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 14 }}>{data.label}</div>
+          <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{data.nodeTypeId}</div>
+        </div>
+
+        {data.description ? (
+          <div style={{ fontSize: 12, color: "#666", marginTop: 6, lineHeight: 1.35 }}>
+            {data.description}
+          </div>
+        ) : null}
+      </div>
+
+      <div style={{ padding: 12, display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#666" }}>
+          <span style={{ fontWeight: 700 }}>Inputs</span>
+          <span>{inPorts.length}</span>
+        </div>
+        {inPorts.map((p) => (
+          <div key={`inlabel-${p.id}`} style={{ fontSize: 12, color: "#444" }}>
+            {p.name}
+          </div>
+        ))}
+
+        <div style={{ marginTop: 4, display: "flex", justifyContent: "space-between", fontSize: 12, color: "#666" }}>
+          <span style={{ fontWeight: 700 }}>Outputs</span>
+          <span>{outPorts.length}</span>
+        </div>
+        {outPorts.map((p) => (
+          <div key={`outlabel-${p.id}`} style={{ fontSize: 12, color: "#444" }}>
+            {p.name}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/flow/nodeTypes.ts =====
+
+import { NodeCard } from "./NodeCard";
+
+export const nodeTypes = {
+  nodeCard: NodeCard,
+};
+
+
+===== src/ui/main.tsx =====
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+    <div><h1>hiiii</h1></div>
+  </StrictMode>,
+)
+
+
+===== src/ui/pages/BlueprintLayoutPage.tsx =====
+
+import * as React from "react";
+import ReactFlow, { Background, Controls, MiniMap, type Node, type Edge } from "reactflow";
+import "reactflow/dist/style.css";
+
+import { Button } from "../components/Button";
+
+type Props = {
+  onBackToWorkflow: () => void;
+};
+
+type MarkerData = { label: string };
+
+function RobotMarkerNode({ data }: { data: MarkerData }) {
+  return (
+    <div
+      style={{
+        padding: "8px 10px",
+        borderRadius: 10,
+        border: "1px solid #111",
+        background: "white",
+        fontSize: 12,
+        fontWeight: 700,
+        boxShadow: "0 8px 18px rgba(0,0,0,0.12)",
+        minWidth: 110,
+        textAlign: "center",
+      }}
+    >
+      {data.label}
+    </div>
+  );
+}
+
+const nodeTypes = { robotMarker: RobotMarkerNode };
+
+export default function BlueprintLayoutPage({ onBackToWorkflow }: Props) {
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
+  const [blueprintPath, setBlueprintPath] = React.useState<string | null>(null);
+
+  // Example “robot layout” nodes (hardcoded for now)
+  const [nodes, setNodes] = React.useState<Node<MarkerData>[]>([
+    { id: "r1", type: "robotMarker", position: { x: 120, y: 120 }, data: { label: "Robot A" } },
+    { id: "r2", type: "robotMarker", position: { x: 380, y: 210 }, data: { label: "Robot B" } },
+    { id: "r3", type: "robotMarker", position: { x: 620, y: 140 }, data: { label: "Robot C" } },
+  ]);
+
+  const [edges] = React.useState<Edge[]>([]);
+
+  const blueprintUrl = blueprintPath ? `file://${blueprintPath}` : null;
+
+  return (
+    <div style={{ height: "100vh", width: "100vw", background: "#fafafa", overflow: "hidden" }}>
+      {/* Simple top bar for this page */}
+      <div
+        style={{
+          height: 56,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 16px",
+          borderBottom: "1px solid #e5e5e5",
+          background: "white",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontWeight: 800 }}>AI Layout</div>
+
+          <button
+            onClick={onBackToWorkflow}
+            style={{
+              border: "1px solid #e5e5e5",
+              background: "white",
+              borderRadius: 10,
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            Back to Workflow
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <input
+            type="file"
+            accept=".dwg,.dxf,.pdf,.tif,.tiff,.ai"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+          />
+
+          <Button
+            variant="primary"
+            action={{
+              kind: "python",
+              scriptPath: "scripts/ai_run.py",
+              args: [],
+              onSuccess: (out) => {
+                const firstLine = out?.[0]?.trim();
+                if (!firstLine) {
+                  alert("AI script returned no output path.");
+                  return;
+                }
+                setBlueprintPath(firstLine);
+                alert("AI run complete (stub). Blueprint loaded.");
+              },
+              onError: (err) => alert("AI run failed: " + err),
+            }}
+          >
+            Enter
+          </Button>
+        </div>
+      </div>
+
+      {/* Canvas */}
+      <div style={{ height: "calc(100vh - 56px)", width: "100%", position: "relative" }}>
+        {/* Blueprint background */}
+        {blueprintUrl ? (
+          <img
+            src={blueprintUrl}
+            alt="Blueprint"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              background: "#f5f5f5",
+              zIndex: 0,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#666",
+              fontSize: 14,
+              zIndex: 0,
+            }}
+          >
+            Select a file and click Enter to load the placeholder blueprint.
+          </div>
+        )}
+
+        {/* ReactFlow overlay (transparent background) */}
+        <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={(changes) => {
+              // Minimal inline applyNodeChanges to avoid importing more if you want.
+              // If you prefer, I will refactor this to match your FlowCanvas style.
+              setNodes((prev) => {
+                const next = [...prev];
+                for (const c of changes) {
+                  if (c.type === "position" && c.id) {
+                    const idx = next.findIndex((n) => n.id === c.id);
+                    if (idx >= 0 && c.position) next[idx] = { ...next[idx], position: c.position };
+                  }
+                  if (c.type === "remove" && c.id) {
+                    const idx = next.findIndex((n) => n.id === c.id);
+                    if (idx >= 0) next.splice(idx, 1);
+                  }
+                }
+                return next;
+              });
+            }}
+            fitView
+            style={{ background: "transparent" }}
+          >
+            <Background />
+            <Controls />
+            <MiniMap />
+          </ReactFlow>
+        </div>
+      </div>
+
+      {/* Optional: show selected file info */}
+      <div style={{ position: "fixed", bottom: 10, left: 10, fontSize: 12, color: "#666" }}>
+        Selected: {selectedFile ? selectedFile.name : "None"}
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/pages/WorkflowPage.tsx =====
+
+import * as React from "react";
+import type { Node, Edge } from "reactflow";
+
+import { Navbar } from "../components/layout/Navbar";
+import { FlowCanvas } from "../flow/FlowCanvas";
+import "../styles/workflow.css";
+import { RightSlideBar } from "../components/RightSlideBar";
+
+import { SelectionDetails, type LastClicked } from "../components/SelectionDetails";
+import { ProjectNodeTypesPanel } from "../components/ProjectNodeTypesPanel";
+import { AvailableNodeTypesPanel, type NodeDefinition } from "../components/AvailableNodeTypesPanel";
+import type { NodeCardData } from "../flow/NodeCard";
+
+type Props = {
+  onGoToAiLayout: () => void;
+};
+
+type SidebarView = "details" | "projectTypes" | "addTypes";
+
+const initialNodes: Node<NodeCardData>[] = [];
+const initialEdges: Edge[] = [];
+
+export default function WorkflowPage({ onGoToAiLayout }: Props) {
+  const [panelOpen, setPanelOpen] = React.useState(false);
+  const [lastClicked, setLastClicked] = React.useState<LastClicked>({ kind: "none" });
+  const [sidebarView, setSidebarView] = React.useState<SidebarView>("details");
+
+  const [nodes, setNodes] = React.useState<Node<NodeCardData>[]>(initialNodes);
+  const [edges, setEdges] = React.useState<Edge[]>(initialEdges);
+
+  const [nodeDefs, setNodeDefs] = React.useState<NodeDefinition[]>([]);
+  const [nodeDefsById, setNodeDefsById] = React.useState<Record<string, NodeDefinition>>({});
+
+  const resetSelection = () => setLastClicked({ kind: "none" });
+
+  React.useEffect(() => {
+    (async () => {
+      if (!window.api?.listNodeDefs) {
+        alert("Bridge missing: window.api.listNodeDefs not available.");
+        return;
+      }
+
+      const res = await window.api.listNodeDefs();
+      if (!res.success) {
+        alert("Failed to load node definitions: " + (res.error ?? "unknown"));
+        setNodeDefs([]);
+        setNodeDefsById({});
+        return;
+      }
+
+      const defs = (res.defs ?? []) as NodeDefinition[];
+      setNodeDefs(defs);
+
+      const map: Record<string, NodeDefinition> = {};
+      for (const d of defs) map[d.id] = d;
+      setNodeDefsById(map);
+    })();
+  }, []);
+
+  const nodeTypesInProject = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const n of nodes) set.add(n.data?.nodeTypeId ?? "unknown");
+    return Array.from(set).sort();
+  }, [nodes]);
+
+  const sidebarTitle =
+    sidebarView === "details"
+      ? "Details"
+      : sidebarView === "projectTypes"
+      ? "Project Node Types"
+      : "Add Node Types";
+
+  const selectedNode =
+    lastClicked.kind === "node"
+      ? nodes.find((n) => n.id === lastClicked.nodeId) ?? null
+      : null;
+
+  const selectedDef = selectedNode ? nodeDefsById[selectedNode.data.nodeTypeId] ?? null : null;
+
+  const updateNodeParams = (nodeId: string, nextParams: Record<string, any>) => {
+    setNodes((prev) =>
+      prev.map((n) => {
+        if (n.id !== nodeId) return n;
+        return { ...n, data: { ...n.data, params: nextParams } };
+      })
+    );
+  };
+
+  const deployWorkflow = async () => {
+    if (!window.api?.runWorkflow) {
+      alert("Bridge missing: window.api.runWorkflow not available.");
+      return;
+    }
+
+    const payload = {
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        nodeTypeId: n.data.nodeTypeId,
+        label: n.data.label,
+        params: n.data.params,
+        inputs: n.data.inputs,
+        outputs: n.data.outputs,
+      })),
+      edges: edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle ?? null,
+        targetHandle: e.targetHandle ?? null,
+      })),
+      nodeDefsById,
+    };
+
+    const res = await window.api.runWorkflow(payload);
+    if (!res.success) {
+      alert("Deploy failed: " + (res.error ?? "unknown"));
+      return;
+    }
+
+    alert(
+      "Spawned:\n" +
+        (res.spawned ?? [])
+          .map((s: any) => `${s.nodeTypeId} (${s.nodeId}) pid=${s.pid}`)
+          .join("\n")
+    );
+
+    setLastClicked({ kind: "deploy" });
+    setSidebarView("details");
+    setPanelOpen(true);
+  };
+
+  return (
+    <div className="wf-shell">
+      <Navbar
+        panelOpen={panelOpen}
+        onTogglePanel={() => setPanelOpen((v) => !v)}
+        onGoToAiLayout={onGoToAiLayout}
+        onDeployWorkflow={deployWorkflow}
+      />
+
+      <RightSlideBar
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        title={sidebarTitle}
+        headerActions={
+          <>
+            <button
+              onClick={() => {
+                resetSelection();
+                setSidebarView("projectTypes");
+              }}
+              style={{
+                border: "1px solid #e5e5e5",
+                background: "white",
+                borderRadius: 8,
+                padding: "6px 10px",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              Project Types
+            </button>
+
+            <button
+              onClick={() => {
+                resetSelection();
+                setSidebarView("addTypes");
+              }}
+              style={{
+                border: "1px solid #e5e5e5",
+                background: "white",
+                borderRadius: 8,
+                padding: "6px 10px",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              Add Types
+            </button>
+
+            <button
+              onClick={() => {
+                resetSelection();
+                setSidebarView("details");
+              }}
+              style={{
+                border: "1px solid #e5e5e5",
+                background: "white",
+                borderRadius: 8,
+                padding: "6px 10px",
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              Reset
+            </button>
+          </>
+        }
+      >
+        {sidebarView === "details" && (
+          <SelectionDetails
+            lastClicked={lastClicked}
+            selectedNode={selectedNode}
+            selectedDef={selectedDef}
+            onUpdateNodeParams={updateNodeParams}
+          />
+        )}
+
+        {sidebarView === "projectTypes" && (
+          <ProjectNodeTypesPanel nodeTypesInProject={nodeTypesInProject} />
+        )}
+
+        {sidebarView === "addTypes" && <AvailableNodeTypesPanel available={nodeDefs} />}
+      </RightSlideBar>
+
+      <div className="wf-body">
+        <FlowCanvas
+          nodes={nodes}
+          edges={edges}
+          setNodes={setNodes}
+          setEdges={setEdges}
+          nodeDefsById={nodeDefsById}
+          onCanvasClick={() => {
+            setLastClicked({ kind: "canvas" });
+            setSidebarView("details");
+          }}
+          onNodeClick={(nodeId, nodeLabel) => {
+            setLastClicked({ kind: "node", nodeId, nodeLabel });
+            setSidebarView("details");
+            setPanelOpen(true);
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+
+===== src/ui/vite-env.d.ts =====
+
+/// <reference types="vite/client" />
+
+
+===== tsconfig.app.json =====
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+  
+}
+
+
+===== tsconfig.json =====
+
+{
+  "files": [],
+  "exclude": ["src/electron"],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+
+
+===== tsconfig.node.json =====
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+
+===== vite.config.ts =====
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  base:'./',
+  build:{
+    outDir:'dist-react',
+  },
+  server:{
+    port:5123,
+    strictPort:true,
+  },
+});
