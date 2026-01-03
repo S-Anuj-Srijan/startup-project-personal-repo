@@ -3,48 +3,66 @@ import path from "path";
 import fs from "fs";
 
 export function getPreloadPath() {
-  // Option A: preload is inside app files
   return path.join(app.getAppPath(), "dist-electron", "preload.js");
 }
 
-/** Resolve script path in dev (cwd) and prod (resources). Pass e.g. "scripts/hello.py". */
 export function getScriptPath(rel: string) {
-  const p = app.isPackaged
+  return app.isPackaged
     ? path.join(process.resourcesPath, rel)
     : path.join(process.cwd(), rel);
-  return p;
 }
 
-/** OPTIONAL: Resolve a bundled Python interpreter if you ship one. */
-export function getBundledPythonPath(): string | null {
-  if (!app.isPackaged) return null;
+function exists(p: string) {
+  try { return fs.existsSync(p); } catch { return false; }
+}
 
-  // Example layout you place under your repo's ./python/ folder (copied via extraResources)
-  // - Windows:   python/win/python.exe
-  // - macOS:     python/mac/bin/python3
-  // - Linux:     python/linux/bin/python3
-  const base = path.join(process.resourcesPath, "python");
-  const candidates =
-    process.platform === "win32"
-      ? [path.join(base, "win", "python.exe")]
-      : process.platform === "darwin"
-      ? [path.join(base, "mac", "bin", "python3")]
-      : [path.join(base, "linux", "bin", "python3")];
+/**
+ * Returns best python executable path.
+ * On Windows: prefer pythonw.exe to avoid console windows.
+ */
+export function getBestPythonPath(): string | null {
+  const base = app.isPackaged
+    ? path.join(process.resourcesPath, "python")
+    : path.join(process.cwd(), "python");
 
-  for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
+  if (process.platform === "win32") {
+    const pythonw = path.join(base, "win", "pythonw.exe");
+    const python = path.join(base, "win", "python.exe");
+    if (exists(pythonw)) return pythonw;
+    if (exists(python)) return python;
+    return null;
   }
+
+  if (process.platform === "darwin") {
+    const py = path.join(base, "mac", "bin", "python3");
+    if (exists(py)) return py;
+    return null;
+  }
+
+  const pyl = path.join(base, "linux", "bin", "python3");
+  if (exists(pyl)) return pyl;
   return null;
 }
 
-/** FOR DEBUGGING: print where we think things are. */
 export function debugPaths() {
-  const info = {
+  const devBase = path.join(process.cwd(), "python", "win");
+  const prodBase = path.join(process.resourcesPath, "python", "win");
+
+  return {
     isPackaged: app.isPackaged,
     appPath: app.getAppPath(),
     resourcesPath: process.resourcesPath,
     scriptExampleDev: path.join(process.cwd(), "scripts", "hello.py"),
     scriptExampleProd: path.join(process.resourcesPath, "scripts", "hello.py"),
+
+    devPythonw: path.join(devBase, "pythonw.exe"),
+    devPython: path.join(devBase, "python.exe"),
+    prodPythonw: path.join(prodBase, "pythonw.exe"),
+    prodPython: path.join(prodBase, "python.exe"),
+
+    devPythonw_exists: exists(path.join(devBase, "pythonw.exe")),
+    devPython_exists: exists(path.join(devBase, "python.exe")),
+    prodPythonw_exists: exists(path.join(prodBase, "pythonw.exe")),
+    prodPython_exists: exists(path.join(prodBase, "python.exe")),
   };
-  return info;
 }
