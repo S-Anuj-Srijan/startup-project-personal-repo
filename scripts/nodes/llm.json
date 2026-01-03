@@ -1,13 +1,12 @@
 {
   "id": "llm",
   "label": "LLM Prompt",
-  "description": "Call an LLM with a prompt and transform input into structured output.",
+  "description": "Shows apiKey + prompt in a Tkinter window (test).",
   "inputs": [{ "id": "in", "name": "Input" }],
   "outputs": [{ "id": "out", "name": "Output" }],
   "params": [
     { "id": "apiKey", "label": "API Key", "type": "password", "required": true },
-    { "id": "model", "label": "Model", "type": "string", "default": "gpt-4o-mini" },
-    { "id": "prompt", "label": "Prompt", "type": "textarea", "default": "Summarize the input." }
+    { "id": "prompt", "label": "Prompt", "type": "textarea", "required": true }
   ],
   "script": "scripts/nodes/llm.py"
 }

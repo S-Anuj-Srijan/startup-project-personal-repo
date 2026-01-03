@@ -1,12 +1,12 @@
 {
   "id": "robot",
   "label": "Robot Node",
-  "description": "Convert JSON output into robot instructions.",
-  "inputs": [{ "id": "in", "name": "Instruction JSON" }],
-  "outputs": [{ "id": "status", "name": "Status" }],
+  "description": "Shows robotIp and robotSpeed in a Tkinter window (test).",
+  "inputs": [{ "id": "in", "name": "Commands" }],
+  "outputs": [],
   "params": [
-    { "id": "robotIp", "label": "Robot IP", "type": "string", "default": "192.168.0.10" },
-    { "id": "speed", "label": "Speed", "type": "number", "default": 1.0 }
+    { "id": "robotIp", "label": "Robot IP", "type": "string", "required": true },
+    { "id": "robotSpeed", "label": "Robot Speed", "type": "number", "default": 50 }
   ],
   "script": "scripts/nodes/robot.py"
 }

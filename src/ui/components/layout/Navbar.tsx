@@ -1,16 +1,17 @@
 import { Button } from "../Button";
 
-/* 👉 UPDATED PROPS */
 type Props = {
   panelOpen: boolean;
   onTogglePanel: () => void;
   onGoToAiLayout: () => void;
+  onDeployWorkflow: () => void;
 };
 
 export function Navbar({
   panelOpen,
   onTogglePanel,
   onGoToAiLayout,
+  onDeployWorkflow,
 }: Props) {
   return (
     <div
@@ -24,7 +25,7 @@ export function Navbar({
         background: "white",
       }}
     >
-      {/* Left: brand + arrow */}
+      {/* Left: brand + panel toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 700 }}>plai</div>
 
@@ -71,11 +72,8 @@ export function Navbar({
 
         <Button
           action={{
-            kind: "python",
-            scriptPath: "scripts/deploy_workflow.py",
-            args: ["--env=local"],
-            onSuccess: (out) => alert(out?.join("\n") || "Deploy complete"),
-            onError: (err) => alert("Deploy failed: " + err),
+            kind: "click",
+            onClick: onDeployWorkflow,
           }}
         >
           Deploy

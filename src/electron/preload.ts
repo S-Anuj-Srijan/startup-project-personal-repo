@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("run-python", { scriptPath, args }),
 
   listNodeDefs: () => ipcRenderer.invoke("list-node-defs"),
+
+  runWorkflow: (payload: any) => ipcRenderer.invoke("run-workflow", payload),
 });
-  

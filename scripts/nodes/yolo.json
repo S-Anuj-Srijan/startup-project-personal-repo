@@ -1,12 +1,11 @@
 {
   "id": "yolo",
   "label": "YOLO Detect",
-  "description": "Run YOLO inference using a selected model file.",
-  "inputs": [{ "id": "image", "name": "Image" }],
-  "outputs": [{ "id": "detections", "name": "Detections" }],
+  "description": "Opens camera and (optionally) runs YOLO with the selected .pt file.",
+  "inputs": [],
+  "outputs": [{ "id": "out", "name": "Detections" }],
   "params": [
-    { "id": "modelFile", "label": "Model File (.pt)", "type": "file", "required": true },
-    { "id": "confidence", "label": "Confidence", "type": "number", "default": 0.5 }
+    { "id": "modelFile", "label": "Model (.pt)", "type": "file", "required": true }
   ],
   "script": "scripts/nodes/yolo.py"
 }

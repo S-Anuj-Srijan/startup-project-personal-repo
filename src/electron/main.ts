@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { isDev } from "./util.js";
 import { getPreloadPath, getScriptPath, debugPaths } from "./pathresolver.js";
-import { runPythonScript } from "./resourceManager.js";
+import { runPythonScript, spawnPythonProcess } from "./resourceManager.js";
 
 function readNodeDefinitions() {
   const dir = getScriptPath("scripts/nodes");
@@ -37,11 +37,7 @@ app.on("ready", () => {
     },
   });
 
-  const dbg = debugPaths();
-  console.log("[PATHS]", dbg);
-
-  const testScriptPath = getScriptPath("scripts/hello.py");
-  console.log("[CHECK] script exists?", testScriptPath, fs.existsSync(testScriptPath));
+  console.log("[PATHS]", debugPaths());
 
   if (isDev()) {
     mainWindow.loadURL("http://localhost:5123");
@@ -62,12 +58,65 @@ ipcMain.handle(
   }
 );
 
-// NEW: load node definitions from scripts/nodes/*.json
+// Load node definitions from scripts/nodes/*.json
 ipcMain.handle("list-node-defs", async () => {
   try {
     const defs = readNodeDefinitions();
     return { success: true, defs };
   } catch (e: any) {
     return { success: false, error: e?.message || String(e), defs: [] };
+  }
+});
+
+// Spawn one python process per node instance (non-blocking)
+ipcMain.handle("run-workflow", async (_evt, payload: any) => {
+  try {
+    const nodes = payload?.nodes ?? [];
+    const nodeDefsById = payload?.nodeDefsById ?? {};
+
+    const spawned: Array<{
+      nodeId: string;
+      nodeTypeId: string;
+      pid: number | null;
+      script: string;
+    }> = [];
+
+    for (const n of nodes) {
+      const nodeId = String(n.id);
+      const nodeTypeId = String(n.nodeTypeId);
+
+      const def = nodeDefsById[nodeTypeId];
+      const script = def?.script;
+
+      if (!script) {
+        throw new Error(`Node type '${nodeTypeId}' has no script in its JSON definition.`);
+      }
+
+      const params = n.params ?? {};
+      const inputs = n.inputs ?? [];
+      const outputs = n.outputs ?? [];
+
+      const jsonArg = JSON.stringify({
+        nodeId,
+        nodeTypeId,
+        label: n.label,
+        params,
+        inputs,
+        outputs,
+      });
+
+      const res = spawnPythonProcess(script, [jsonArg]);
+
+      spawned.push({
+        nodeId,
+        nodeTypeId,
+        pid: res.pid,
+        script: res.script,
+      });
+    }
+
+    return { success: true, spawned };
+  } catch (e: any) {
+    return { success: false, error: e?.message || String(e) };
   }
 });

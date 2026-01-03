@@ -86,12 +86,56 @@ export default function WorkflowPage({ onGoToAiLayout }: Props) {
     );
   };
 
+  const deployWorkflow = async () => {
+    if (!window.api?.runWorkflow) {
+      alert("Bridge missing: window.api.runWorkflow not available.");
+      return;
+    }
+
+    const payload = {
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        nodeTypeId: n.data.nodeTypeId,
+        label: n.data.label,
+        params: n.data.params,
+        inputs: n.data.inputs,
+        outputs: n.data.outputs,
+      })),
+      edges: edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle ?? null,
+        targetHandle: e.targetHandle ?? null,
+      })),
+      nodeDefsById,
+    };
+
+    const res = await window.api.runWorkflow(payload);
+    if (!res.success) {
+      alert("Deploy failed: " + (res.error ?? "unknown"));
+      return;
+    }
+
+    alert(
+      "Spawned:\n" +
+        (res.spawned ?? [])
+          .map((s: any) => `${s.nodeTypeId} (${s.nodeId}) pid=${s.pid}`)
+          .join("\n")
+    );
+
+    setLastClicked({ kind: "deploy" });
+    setSidebarView("details");
+    setPanelOpen(true);
+  };
+
   return (
     <div className="wf-shell">
       <Navbar
         panelOpen={panelOpen}
         onTogglePanel={() => setPanelOpen((v) => !v)}
         onGoToAiLayout={onGoToAiLayout}
+        onDeployWorkflow={deployWorkflow}
       />
 
       <RightSlideBar
